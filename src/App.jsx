@@ -409,6 +409,7 @@ const MailApp = ({ onLogout }) => {
   const [folder, setFolder]   = useState("home");
   const [view,   setView]     = useState("home");
   const [selected,setSelected]= useState(null);
+  const [checkedIds, setCheckedIds] = useState(new Set());
   // composeMode: "self" | "other"
   const [compose, setCompose] = useState({ mode:"self", to:"", subject:"", body:"", attachments:[] });
   const [search,  setSearch]  = useState("");
@@ -494,6 +495,7 @@ const MailApp = ({ onLogout }) => {
   const navTo      = key => {
     const newView = key==="home" ? "home" : "list";
     setFolder(key); setView(newView); setSearch("");
+    setCheckedIds(new Set());
     pushHistory(newView, key);
   };
   const goCompose  = (preset={}) => {
@@ -682,25 +684,25 @@ const MailApp = ({ onLogout }) => {
 
   // ── LIST ─────────────────────────────────────────────────────────────────────
   const ListView = () => {
-    const [selected, setSelected] = useState(new Set());
     const items = getFiltered();
     const folderInfo = FOLDERS.find(f=>f.key===folder);
     const isSentFolder = folder==="sent";
     const unconfirmedInList = items.filter(m=>m.receipt&&!m.receipt.confirmed).length;
-    const allSelected = items.length>0 && items.every(m=>selected.has(m.id));
+    const allSelected = items.length>0 && items.every(m=>checkedIds.has(m.id));
 
     const toggleOne = (id, e) => {
       e.stopPropagation();
-      setSelected(s=>{ const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
+      setCheckedIds(s=>{ const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
     };
     const toggleAll = () => {
-      if (allSelected) setSelected(new Set());
-      else setSelected(new Set(items.map(m=>m.id)));
+      if (allSelected) setCheckedIds(new Set());
+      else setCheckedIds(new Set(items.map(m=>m.id)));
     };
     const deleteSelected = () => {
-      selected.forEach(id=>deleteMail(id));
-      setSelected(new Set());
-      showToast(`🗑️ ${selected.size}통을 삭제했어요`);
+      const cnt = checkedIds.size;
+      checkedIds.forEach(id=>deleteMail(id));
+      setCheckedIds(new Set());
+      showToast(`🗑️ ${cnt}통을 삭제했어요`);
     };
 
     return (
@@ -717,10 +719,10 @@ const MailApp = ({ onLogout }) => {
             )}
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            {selected.size>0&&(
+            {checkedIds.size>0&&(
               <button onClick={deleteSelected}
                 style={{ display:"flex", alignItems:"center", gap:6, background:"linear-gradient(135deg,#fb7185,#f43f5e)", border:"none", borderRadius:99, padding:"9px 18px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", boxShadow:"0 4px 16px rgba(251,113,133,0.4)", animation:"fadeInScale 0.2s ease" }}>
-                🗑️ {selected.size}통 삭제
+                🗑️ {checkedIds.size}통 삭제
               </button>
             )}
             {folder==="tome"&&<Btn variant="purple" onClick={()=>goCompose({mode:"self"})} style={{ fontSize:13, padding:"9px 18px" }}>💌 내게 편지 쓰기</Btn>}
@@ -750,17 +752,17 @@ const MailApp = ({ onLogout }) => {
                   {allSelected&&<span style={{ color:"#fff", fontSize:13, lineHeight:1 }}>✓</span>}
                 </div>
                 <span style={{ fontSize:12, color:C.textLight, fontWeight:600 }}>
-                  {selected.size>0 ? `${selected.size}통 선택됨` : "전체 선택"}
+                  {checkedIds.size>0 ? `${checkedIds.size}통 선택됨` : "전체 선택"}
                 </span>
-                {selected.size>0&&(
-                  <span style={{ fontSize:11, color:C.pinkDark, fontWeight:700, cursor:"pointer" }} onClick={()=>setSelected(new Set())}>
+                {checkedIds.size>0&&(
+                  <span style={{ fontSize:11, color:C.pinkDark, fontWeight:700, cursor:"pointer" }} onClick={()=>setCheckedIds(new Set())}>
                     ✕ 선택 해제
                   </span>
                 )}
               </div>
 
               {items.map((m,i)=>{
-                const isChecked = selected.has(m.id);
+                const isChecked = checkedIds.has(m.id);
                 return (
                   <div key={m.id} className="mailRow" onClick={()=>readMail(m)}
                     style={{ display:"flex", alignItems:"center", gap:14, padding:"15px 20px", borderBottom:i<items.length-1?`1px solid ${C.border}`:"none", cursor:"pointer", background:isChecked?"rgba(244,114,182,0.08)":!m.read?"rgba(249,168,212,0.06)":"transparent", transition:"background 0.2s" }}>
