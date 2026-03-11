@@ -671,3 +671,243 @@ const MailApp = ({ onLogout }) => {
             )}
           </div>
         )}
+
+        <div style={{ display:"flex", gap:12, marginTop:8 }}>
+          <Btn onClick={()=>goCompose({mode:"self", subject:`Re: ${m.subject}`, body:""})}>↩️ 답장</Btn>
+          <Btn variant="ghost" onClick={()=>goCompose({mode:m.folder==="sent"?"other":"self", to:m.to, subject:`Fwd: ${m.subject}`, body:m.body, attachments:m.attachments||[]})}>↗️ 전달</Btn>
+        </div>
+      </Glass>
+    );
+  };
+
+  // ── LIST ─────────────────────────────────────────────────────────────────────
+  const ListView = () => {
+    const [selected, setSelected] = useState(new Set());
+    const items = getFiltered();
+    const folderInfo = FOLDERS.find(f=>f.key===folder);
+    const isSentFolder = folder==="sent";
+    const unconfirmedInList = items.filter(m=>m.receipt&&!m.receipt.confirmed).length;
+    const allSelected = items.length>0 && items.every(m=>selected.has(m.id));
+
+    const toggleOne = (id, e) => {
+      e.stopPropagation();
+      setSelected(s=>{ const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
+    };
+    const toggleAll = () => {
+      if (allSelected) setSelected(new Set());
+      else setSelected(new Set(items.map(m=>m.id)));
+    };
+    const deleteSelected = () => {
+      selected.forEach(id=>deleteMail(id));
+      setSelected(new Set());
+      showToast(`🗑️ ${selected.size}통을 삭제했어요`);
+    };
+
+    return (
+      <div className="fadeIn">
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:24 }}>{folderInfo?.icon}</span>
+            <h2 style={{ fontFamily:"'Nunito',sans-serif", fontWeight:900, fontSize:20, color:C.text }}>{folderInfo?.label}</h2>
+            <span style={{ fontSize:12, color:C.textLight }}>{items.length}통</span>
+            {isSentFolder&&unconfirmedInList>0&&(
+              <span style={{ background:`linear-gradient(135deg,${C.blue},#3b82f6)`, color:"#fff", borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 10px" }}>
+                📨 미확인 {unconfirmedInList}
+              </span>
+            )}
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            {selected.size>0&&(
+              <button onClick={deleteSelected}
+                style={{ display:"flex", alignItems:"center", gap:6, background:"linear-gradient(135deg,#fb7185,#f43f5e)", border:"none", borderRadius:99, padding:"9px 18px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", boxShadow:"0 4px 16px rgba(251,113,133,0.4)", animation:"fadeInScale 0.2s ease" }}>
+                🗑️ {selected.size}통 삭제
+              </button>
+            )}
+            {folder==="tome"&&<Btn variant="purple" onClick={()=>goCompose({mode:"self"})} style={{ fontSize:13, padding:"9px 18px" }}>💌 내게 편지 쓰기</Btn>}
+          </div>
+        </div>
+
+        {isSentFolder&&items.length>0&&(
+          <div style={{ display:"flex", gap:10, marginBottom:14, padding:"12px 18px", background:C.glassStrong, borderRadius:16, border:`1px solid ${C.border}`, backdropFilter:"blur(10px)", flexWrap:"wrap", alignItems:"center" }}>
+            <span style={{ fontSize:12, fontWeight:700, color:C.textMid }}>📊 수신 현황</span>
+            <span style={{ fontSize:12, color:"#059669", fontWeight:600 }}>✅ 읽음 {items.filter(m=>m.receipt?.readAt).length}</span>
+            <span style={{ fontSize:12, color:C.textMid, fontWeight:600 }}>📭 안읽음 {items.filter(m=>m.receipt&&!m.receipt.readAt&&m.receipt.confirmed).length}</span>
+            <span style={{ fontSize:12, color:"#2563eb", fontWeight:600 }}>📨 미확인 {items.filter(m=>m.receipt&&!m.receipt.confirmed).length}</span>
+          </div>
+        )}
+
+        <Glass style={{ overflow:"hidden" }}>
+          {items.length===0 ? (
+            <div style={{ padding:64, textAlign:"center" }}>
+              <div className="float" style={{ fontSize:52, marginBottom:12 }}>📭</div>
+              <p style={{ color:C.textLight, fontSize:14 }}>아직 편지가 없어요</p>
+            </div>
+          ) : (
+            <>
+              {/* 전체선택 헤더 */}
+              <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 20px", borderBottom:`1px solid ${C.border}`, background:"rgba(249,168,212,0.05)" }}>
+                <div onClick={toggleAll} style={{ width:20, height:20, borderRadius:6, border:`2px solid ${allSelected?C.pink:C.border}`, background:allSelected?C.pink:"transparent", cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.2s" }}>
+                  {allSelected&&<span style={{ color:"#fff", fontSize:13, lineHeight:1 }}>✓</span>}
+                </div>
+                <span style={{ fontSize:12, color:C.textLight, fontWeight:600 }}>
+                  {selected.size>0 ? `${selected.size}통 선택됨` : "전체 선택"}
+                </span>
+                {selected.size>0&&(
+                  <span style={{ fontSize:11, color:C.pinkDark, fontWeight:700, cursor:"pointer" }} onClick={()=>setSelected(new Set())}>
+                    ✕ 선택 해제
+                  </span>
+                )}
+              </div>
+
+              {items.map((m,i)=>{
+                const isChecked = selected.has(m.id);
+                return (
+                  <div key={m.id} className="mailRow" onClick={()=>readMail(m)}
+                    style={{ display:"flex", alignItems:"center", gap:14, padding:"15px 20px", borderBottom:i<items.length-1?`1px solid ${C.border}`:"none", cursor:"pointer", background:isChecked?"rgba(244,114,182,0.08)":!m.read?"rgba(249,168,212,0.06)":"transparent", transition:"background 0.2s" }}>
+
+                    {/* 체크박스 */}
+                    <div onClick={e=>toggleOne(m.id,e)}
+                      style={{ width:20, height:20, borderRadius:6, border:`2px solid ${isChecked?C.pink:C.border}`, background:isChecked?C.pink:"transparent", cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.2s" }}>
+                      {isChecked&&<span style={{ color:"#fff", fontSize:13, lineHeight:1 }}>✓</span>}
+                    </div>
+
+                    {/* 읽음 dot */}
+                    <div style={{ width:8, height:8, borderRadius:"50%", background:!m.read?C.pink:"transparent", flexShrink:0, boxShadow:!m.read?`0 0 7px ${C.pink}`:"none" }} />
+
+                    {/* 별 */}
+                    <button onClick={e=>toggleStar(m.id,e)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:16, flexShrink:0 }}>{m.starred?"⭐":"☆"}</button>
+
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, overflow:"hidden", minWidth:0 }}>
+                          <span style={{ fontWeight:m.read?500:700, fontSize:14, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{m.subject}</span>
+                          {m.attachments?.length>0&&<span style={{ fontSize:12, flexShrink:0 }}>📎</span>}
+                        </div>
+                        <span style={{ fontSize:11, color:C.textLight, flexShrink:0, marginLeft:12 }}>{m.date}</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <p style={{ fontSize:12, color:C.textLight, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>
+                          {isSentFolder ? `→ ${m.to}` : m.body.slice(0,60)+"..."}
+                        </p>
+                        {m.receipt&&(
+                          <div onClick={e=>e.stopPropagation()}>
+                            {!m.receipt.confirmed ? (
+                              <button className="receipt-btn" onClick={e=>checkReceipt(m.id,e)}
+                                style={{ display:"inline-flex", alignItems:"center", gap:4, background:"rgba(96,165,250,0.13)", border:`1.5px solid rgba(96,165,250,0.4)`, borderRadius:99, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#2563eb", cursor:"pointer", whiteSpace:"nowrap" }}>
+                                📨 수신확인
+                              </button>
+                            ) : m.receipt.readAt ? (
+                              <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:C.greenPale, border:`1.5px solid rgba(52,211,153,0.4)`, borderRadius:99, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#059669", whiteSpace:"nowrap" }}>✅ 읽음</span>
+                            ) : (
+                              <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"rgba(249,168,212,0.1)", border:`1.5px solid ${C.border}`, borderRadius:99, padding:"3px 10px", fontSize:11, fontWeight:700, color:C.textMid, whiteSpace:"nowrap" }}>📭 안읽음</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <button onClick={e=>{ e.stopPropagation(); deleteMail(m.id); }} style={{ background:"none", border:"none", cursor:"pointer", fontSize:14, opacity:0.4, flexShrink:0 }}>🗑️</button>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </Glass>
+      </div>
+    );
+  };
+
+  // ── SHELL ────────────────────────────────────────────────────────────────────
+  return (
+    <div style={{ minHeight:"100vh", width:"100%", display:"flex", flexDirection:"column", position:"relative", zIndex:1 }}>
+      <BgBlobs />
+
+      {toast&&(
+        <div style={{ position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)", background:`linear-gradient(135deg,${C.pink},${C.purple})`, color:"#fff", borderRadius:99, padding:"12px 28px", fontWeight:700, fontSize:14, zIndex:999, animation:"fadeInScale 0.3s ease", boxShadow:"0 6px 24px rgba(244,114,182,0.4)", whiteSpace:"nowrap" }}>
+          {toast}
+        </div>
+      )}
+
+      <header style={{ background:"rgba(255,255,255,0.68)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", borderBottom:`1px solid ${C.border}`, padding:"0 32px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, width:"100%" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <button onClick={()=>setSideOpen(o=>!o)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:20, padding:4, color:C.text }}>☰</button>
+          <div style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer" }} onClick={()=>navTo("home")}>
+            <div className="float" style={{ fontSize:26 }}>🐰</div>
+            <span style={{ fontFamily:"'Nunito',sans-serif", fontWeight:900, fontSize:18, color:C.text }}>Space Nari Mail</span>
+          </div>
+          {view!=="home"&&(
+            <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:C.textLight }}>
+              <span style={{ cursor:"pointer" }} onClick={()=>navTo("home")}>홈</span>
+              <span>›</span>
+              {view==="compose"&&<span style={{ color:C.textMid }}>편지 쓰기</span>}
+              {view==="list"  &&<span style={{ color:C.textMid }}>{FOLDERS.find(f=>f.key===folder)?.label}</span>}
+              {view==="read"  &&<><span style={{ cursor:"pointer" }} onClick={()=>window.history.back()}>{FOLDERS.find(f=>f.key===folder)?.label}</span><span>›</span><span style={{ color:C.textMid }}>읽기</span></>}
+            </div>
+          )}
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 편지 검색..."
+            style={{ padding:"8px 16px", borderRadius:99, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:13, color:C.text, outline:"none", width:200 }}
+            onFocus={e=>e.target.style.borderColor=C.pink} onBlur={e=>e.target.style.borderColor=C.border} />
+          <Btn variant="soft"  onClick={()=>navTo("home")}  style={{ padding:"8px 16px", fontSize:12 }}>🏠 홈</Btn>
+          <div style={{ fontSize:13, color:C.textMid, fontWeight:700 }}>{ME.name} 🌸</div>
+          <Btn variant="ghost" onClick={onLogout} style={{ padding:"8px 16px", fontSize:12 }}>로그아웃</Btn>
+        </div>
+      </header>
+
+      <div style={{ display:"flex", flex:1, padding:"24px", gap:16, width:"100%" }}>
+        {sideOpen&&(
+          <aside style={{ width:236, flexShrink:0, animation:"slideIn 0.3s ease" }}>
+            <Btn onClick={()=>goCompose({mode:"other"})} style={{ width:"100%", padding:"13px", fontSize:14, marginBottom:10, justifyContent:"center" }}>✏️ 편지 쓰기</Btn>
+            <Btn variant="purple" onClick={()=>goCompose({mode:"self"})} style={{ width:"100%", padding:"12px", fontSize:13, marginBottom:16, justifyContent:"center" }}>💌 내게 편지 쓰기</Btn>
+            <Glass style={{ padding:"10px 8px", marginBottom:14 }}>
+              {FOLDERS.map(f=>{
+                const cnt     = f.key==="inbox"?unreadInbox:f.key==="tome"?unreadTome:f.key==="sent"?unconfirmed:0;
+                const active  = folder===f.key&&(view==="list"||view==="home");
+                const isSentF = f.key==="sent";
+                return (
+                  <div key={f.key} className="sideItem" onClick={()=>navTo(f.key)}
+                    style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 13px", borderRadius:13, cursor:"pointer", background:active?"rgba(244,114,182,0.18)":"transparent", marginBottom:2, transition:"background 0.2s" }}>
+                    <span style={{ fontSize:17 }}>{f.icon}</span>
+                    <span style={{ fontSize:13, fontWeight:active?700:500, color:active?C.pinkDark:C.text, flex:1 }}>{f.label}</span>
+                    {cnt>0&&<span style={{ background: isSentF?`linear-gradient(135deg,${C.blue},#3b82f6)`:`linear-gradient(135deg,${C.pink},${C.purple})`, color:"#fff", borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 7px" }}>{cnt}</span>}
+                  </div>
+                );
+              })}
+            </Glass>
+            <Glass style={{ padding:18, textAlign:"center" }}>
+              <div className="float" style={{ fontSize:28, marginBottom:8 }}>🌙</div>
+              <p style={{ fontSize:11, color:C.textLight, lineHeight:1.7 }}>오늘도 반짝이는<br/>하루 보내요 ✦</p>
+              <div style={{ marginTop:10, padding:"8px", background:"rgba(249,168,212,0.12)", borderRadius:10 }}>
+                <p style={{ fontSize:11, fontWeight:700, color:C.textMid }}>{ME.name}</p>
+                <p style={{ fontSize:10, color:C.textLight }}>{ME.email}</p>
+              </div>
+            </Glass>
+          </aside>
+        )}
+
+        <main style={{ flex:1, minWidth:0 }}>
+          {view==="home"    &&<HomeView />}
+          {view==="compose" &&<ComposeView />}
+          {view==="read"    &&<ReadView />}
+          {view==="list"    &&<ListView />}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+// ── ROOT ───────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [page,setPage]         = useState("login");
+  const [loggedIn,setLoggedIn] = useState(false);
+  if (loggedIn) return <MailApp onLogout={()=>{ setLoggedIn(false); setPage("login"); }} />;
+  if (page==="signup") return <Signup onGo={setPage} />;
+  if (page==="findId") return <FindAccount type="findId" onGo={setPage} />;
+  if (page==="findPw") return <FindAccount type="findPw" onGo={setPage} />;
+  return (
+    <div style={{ minHeight:"100vh", width:"100vw", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg,#fce4f0 0%,#ede9fe 50%,#fce4f0 100%)" }}>
+      <Login onLogin={()=>setLoggedIn(true)} onGo={setPage} />
+    </div>
+  );
+}
