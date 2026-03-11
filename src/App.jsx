@@ -258,8 +258,14 @@ const ComposeForm = ({ initialCompose, sendMail, onCancel, fileRef, addFiles, ME
   };
 
   const handleAddFiles = e => {
-    const files = Array.from(e.target.files).map(f=>({ name:f.name, size:f.size, type:f.type }));
-    setAttachments(a=>[...a, ...files]);
+    const fileList = Array.from(e.target.files);
+    fileList.forEach(f => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        setAttachments(a => [...a, { name:f.name, size:f.size, type:f.type, dataUrl:ev.target.result }]);
+      };
+      reader.readAsDataURL(f);
+    });
     e.target.value="";
   };
 
@@ -353,15 +359,30 @@ const ComposeForm = ({ initialCompose, sendMail, onCancel, fileRef, addFiles, ME
             <p style={{ fontSize:11, color:C.textLight }}>모든 형식 · 여러 파일 가능</p>
           </div>
           {attachments.length>0&&(
-            <div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:8 }}>
-              {attachments.map((f,i)=>(
-                <div key={i} style={{ display:"flex", alignItems:"center", gap:7, background:"rgba(249,168,212,0.15)", border:`1px solid ${C.border}`, borderRadius:10, padding:"6px 12px", fontSize:12, color:C.text }}>
-                  <span style={{ fontSize:15 }}>{fileIcon(f.name)}</span>
-                  <span style={{ maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:600 }}>{f.name}</span>
-                  <span style={{ color:C.textLight, fontSize:10 }}>{fmtSize(f.size)}</span>
-                  <button onClick={()=>setAttachments(a=>a.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", cursor:"pointer", color:C.pinkDark, fontSize:15, padding:0 }}>×</button>
+            <div style={{ marginTop:12 }}>
+              {/* Image previews */}
+              {attachments.some(f=>f.dataUrl&&f.type?.startsWith("image/"))&&(
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}>
+                  {attachments.map((f,i)=>f.dataUrl&&f.type?.startsWith("image/")?(
+                    <div key={i} style={{ position:"relative", borderRadius:12, overflow:"hidden", border:`2px solid ${C.border}` }}>
+                      <img src={f.dataUrl} alt={f.name} style={{ width:90, height:70, objectFit:"cover", display:"block" }} />
+                      <button onClick={()=>setAttachments(a=>a.filter((_,idx)=>idx!==i))}
+                        style={{ position:"absolute", top:3, right:3, background:"rgba(236,72,153,0.85)", border:"none", borderRadius:"50%", width:18, height:18, cursor:"pointer", color:"#fff", fontSize:11, display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
+                    </div>
+                  ):null)}
                 </div>
-              ))}
+              )}
+              {/* All files list */}
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                {attachments.map((f,i)=>(
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:7, background:"rgba(249,168,212,0.15)", border:`1px solid ${C.border}`, borderRadius:10, padding:"6px 12px", fontSize:12, color:C.text }}>
+                    <span style={{ fontSize:15 }}>{f.type?.startsWith("image/")?"🖼️":fileIcon(f.name)}</span>
+                    <span style={{ maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:600 }}>{f.name}</span>
+                    <span style={{ color:C.textLight, fontSize:10 }}>{fmtSize(f.size)}</span>
+                    <button onClick={()=>setAttachments(a=>a.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", cursor:"pointer", color:C.pinkDark, fontSize:15, padding:0 }}>×</button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -601,15 +622,50 @@ const MailApp = ({ onLogout }) => {
           <p style={{ fontSize:15, color:C.text, lineHeight:1.9, whiteSpace:"pre-wrap" }}>{m.body}</p>
         </div>
         {m.attachments?.length>0&&(
-          <div style={{ marginBottom:24, padding:"16px 18px", background:"rgba(249,168,212,0.08)", borderRadius:14 }}>
-            <p style={{ fontSize:12, fontWeight:700, color:C.textMid, marginBottom:12 }}>📎 첨부 파일 ({m.attachments.length}개)</p>
+          <div style={{ marginBottom:24, padding:"18px 20px", background:"rgba(249,168,212,0.08)", borderRadius:16 }}>
+            <p style={{ fontSize:12, fontWeight:700, color:C.textMid, marginBottom:14 }}>📎 첨부 파일 ({m.attachments.length}개)</p>
+            {/* Image thumbnails */}
+            {m.attachments.some(f=>f.dataUrl&&f.type?.startsWith("image/"))&&(
+              <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:14 }}>
+                {m.attachments.filter(f=>f.dataUrl&&f.type?.startsWith("image/")).map((f,i)=>(
+                  <div key={i} style={{ position:"relative", borderRadius:14, overflow:"hidden", border:`2px solid ${C.border}`, boxShadow:C.shadow, cursor:"pointer" }}
+                    onClick={()=>{ const a=document.createElement("a"); a.href=f.dataUrl; a.download=f.name; a.click(); }}>
+                    <img src={f.dataUrl} alt={f.name}
+                      style={{ width:130, height:100, objectFit:"cover", display:"block" }} />
+                    <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"linear-gradient(transparent,rgba(0,0,0,0.55))", padding:"18px 8px 6px", fontSize:10, color:"#fff", fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {f.name}
+                    </div>
+                    <div style={{ position:"absolute", top:6, right:6, background:"rgba(255,255,255,0.85)", borderRadius:99, padding:"2px 8px", fontSize:10, fontWeight:700, color:C.textMid }}>
+                      ⬇ 저장
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Non-image files */}
             <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-              {m.attachments.map((f,i)=>(
-                <div key={i} style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(255,255,255,0.7)", border:`1px solid ${C.border}`, borderRadius:12, padding:"10px 16px" }}>
-                  <span style={{ fontSize:24 }}>{fileIcon(f.name)}</span>
+              {m.attachments.filter(f=>!f.type?.startsWith("image/")).map((f,i)=>(
+                <div key={i} onClick={()=>{ if(f.dataUrl){ const a=document.createElement("a"); a.href=f.dataUrl; a.download=f.name; a.click(); } }}
+                  style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(255,255,255,0.75)", border:`1.5px solid ${C.border}`, borderRadius:14, padding:"12px 18px", cursor:f.dataUrl?"pointer":"default", transition:"all 0.2s", boxShadow:"0 2px 8px rgba(244,114,182,0.1)" }}
+                  onMouseEnter={e=>{ if(f.dataUrl) e.currentTarget.style.boxShadow="0 4px 18px rgba(244,114,182,0.25)"; }}
+                  onMouseLeave={e=>e.currentTarget.style.boxShadow="0 2px 8px rgba(244,114,182,0.1)"}>
+                  <span style={{ fontSize:26 }}>{fileIcon(f.name)}</span>
                   <div>
-                    <div style={{ fontSize:13, fontWeight:700, color:C.text, maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</div>
-                    <div style={{ fontSize:11, color:C.textLight }}>{fmtSize(f.size)}</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:C.text, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</div>
+                    <div style={{ fontSize:11, color:C.textLight, marginTop:2 }}>{fmtSize(f.size)} {f.dataUrl&&<span style={{ color:C.pink, marginLeft:4 }}>⬇ 클릭해서 저장</span>}</div>
+                  </div>
+                </div>
+              ))}
+              {/* Image files also shown as list items */}
+              {m.attachments.filter(f=>f.dataUrl&&f.type?.startsWith("image/")).map((f,i)=>(
+                <div key={"img-"+i} onClick={()=>{ const a=document.createElement("a"); a.href=f.dataUrl; a.download=f.name; a.click(); }}
+                  style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(255,255,255,0.75)", border:`1.5px solid ${C.border}`, borderRadius:14, padding:"12px 18px", cursor:"pointer", transition:"all 0.2s", boxShadow:"0 2px 8px rgba(244,114,182,0.1)" }}
+                  onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 18px rgba(244,114,182,0.25)"}
+                  onMouseLeave={e=>e.currentTarget.style.boxShadow="0 2px 8px rgba(244,114,182,0.1)"}>
+                  <span style={{ fontSize:26 }}>🖼️</span>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700, color:C.text, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</div>
+                    <div style={{ fontSize:11, color:C.textLight, marginTop:2 }}>{fmtSize(f.size)} <span style={{ color:C.pink, marginLeft:4 }}>⬇ 클릭해서 저장</span></div>
                   </div>
                 </div>
               ))}
