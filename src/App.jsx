@@ -120,26 +120,50 @@ const Btn = ({ children, onClick, variant="primary", style, disabled }) => {
   return <button onClick={onClick} disabled={disabled} style={{ ...base, ...v[variant] }}>{children}</button>;
 };
 
-const Field = ({ label, type="text", value, onChange, placeholder, icon, readOnly }) => (
-  <div style={{ marginBottom:14 }}>
-    {label && <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5, letterSpacing:"0.04em" }}>{label}</label>}
-    <div style={{ position:"relative" }}>
-      {icon && <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>{icon}</span>}
-      <input type={type} value={value} onChange={e=>onChange&&onChange(e.target.value)} placeholder={placeholder} readOnly={readOnly}
-        style={{ width:"100%", padding:icon?"11px 14px 11px 40px":"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", transition:"border 0.2s", opacity:readOnly?0.7:1 }}
-        onFocus={e=>!readOnly&&(e.target.style.borderColor=C.pink)} onBlur={e=>e.target.style.borderColor=C.border} />
+const Field = ({ label, type="text", value, onChange, placeholder, icon, readOnly }) => {
+  const composing = useRef(false);
+  return (
+    <div style={{ marginBottom:14 }}>
+      {label && <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5, letterSpacing:"0.04em" }}>{label}</label>}
+      <div style={{ position:"relative" }}>
+        {icon && <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>{icon}</span>}
+        <input
+          type={type}
+          defaultValue={value}
+          key={undefined}
+          onChange={e=>{ if(!composing.current && onChange) onChange(e.target.value); }}
+          onCompositionStart={()=>{ composing.current=true; }}
+          onCompositionEnd={e=>{ composing.current=false; if(onChange) onChange(e.target.value); }}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          style={{ width:"100%", padding:icon?"11px 14px 11px 40px":"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", transition:"border 0.2s", opacity:readOnly?0.7:1 }}
+          onFocus={e=>!readOnly&&(e.target.style.borderColor=C.pink)}
+          onBlur={e=>e.target.style.borderColor=C.border}
+        />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
-const TArea = ({ label, value, onChange, placeholder, rows=8 }) => (
-  <div style={{ marginBottom:14 }}>
-    {label && <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5, letterSpacing:"0.04em" }}>{label}</label>}
-    <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
-      style={{ width:"100%", padding:"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", resize:"vertical", lineHeight:1.75 }}
-      onFocus={e=>e.target.style.borderColor=C.pink} onBlur={e=>e.target.style.borderColor=C.border} />
-  </div>
-);
+const TArea = ({ label, value, onChange, placeholder, rows=8 }) => {
+  const composing = useRef(false);
+  return (
+    <div style={{ marginBottom:14 }}>
+      {label && <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5, letterSpacing:"0.04em" }}>{label}</label>}
+      <textarea
+        defaultValue={value}
+        onChange={e=>{ if(!composing.current) onChange(e.target.value); }}
+        onCompositionStart={()=>{ composing.current=true; }}
+        onCompositionEnd={e=>{ composing.current=false; onChange(e.target.value); }}
+        placeholder={placeholder}
+        rows={rows}
+        style={{ width:"100%", padding:"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", resize:"vertical", lineHeight:1.75 }}
+        onFocus={e=>e.target.style.borderColor=C.pink}
+        onBlur={e=>e.target.style.borderColor=C.border}
+      />
+    </div>
+  );
+};
 
 const ErrBox = ({ msg }) => msg ? (
   <div style={{ background:"#fce7f3", border:`1px solid ${C.pinkLight}`, borderRadius:12, padding:"10px 14px", fontSize:13, color:C.pinkDark, marginBottom:14 }}>{msg}</div>
