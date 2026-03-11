@@ -55,7 +55,7 @@ const C = {
   shadow:     "0 8px 32px rgba(244,114,182,0.18)",
 };
 
-const ME   = { id:"bunny", pw:"1234", name:"Space Nari", email:"nari@spacenarimail.me" };
+const ME   = { id:"lala1102", pw:"dotori1102@@", name:"Space Nari", email:"nari@spacenarimail.me" };
 const NOW  = () => new Date().toLocaleString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
 
 const SEED = [
@@ -170,9 +170,7 @@ const Login = ({ onLogin, onGo }) => {
             </span>
           ))}
         </div>
-        <div style={{ marginTop:22, padding:"10px 16px", background:"rgba(249,168,212,0.13)", borderRadius:12, fontSize:12, color:C.textLight, textAlign:"center" }}>
-          💡 테스트: <strong style={{ color:C.textMid }}>bunny / 1234</strong>
-        </div>
+
       </Glass>
     </div>
   );
