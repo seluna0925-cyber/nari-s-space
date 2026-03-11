@@ -120,53 +120,26 @@ const Btn = ({ children, onClick, variant="primary", style, disabled }) => {
   return <button onClick={onClick} disabled={disabled} style={{ ...base, ...v[variant] }}>{children}</button>;
 };
 
-const Field = ({ label, type="text", value, onChange, placeholder, icon, readOnly }) => {
-  const [local, setLocal] = useState(value||"");
-  const composing = useRef(false);
-  useEffect(()=>{ if(!composing.current) setLocal(value||""); }, [value]);
-  return (
-    <div style={{ marginBottom:14 }}>
-      {label && <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5, letterSpacing:"0.04em" }}>{label}</label>}
-      <div style={{ position:"relative" }}>
-        {icon && <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>{icon}</span>}
-        <input
-          type={type}
-          value={local}
-          onChange={e=>{ setLocal(e.target.value); if(!composing.current && onChange) onChange(e.target.value); }}
-          onCompositionStart={()=>{ composing.current=true; }}
-          onCompositionEnd={e=>{ composing.current=false; setLocal(e.target.value); if(onChange) onChange(e.target.value); }}
-          placeholder={placeholder}
-          readOnly={readOnly}
-          style={{ width:"100%", padding:icon?"11px 14px 11px 40px":"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", transition:"border 0.2s", opacity:readOnly?0.7:1 }}
-          onFocus={e=>!readOnly&&(e.target.style.borderColor=C.pink)}
-          onBlur={e=>e.target.style.borderColor=C.border}
-        />
-      </div>
+const Field = ({ label, type="text", value, onChange, placeholder, icon, readOnly }) => (
+  <div style={{ marginBottom:14 }}>
+    {label && <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5, letterSpacing:"0.04em" }}>{label}</label>}
+    <div style={{ position:"relative" }}>
+      {icon && <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>{icon}</span>}
+      <input type={type} value={value} onChange={e=>onChange&&onChange(e.target.value)} placeholder={placeholder} readOnly={readOnly}
+        style={{ width:"100%", padding:icon?"11px 14px 11px 40px":"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", transition:"border 0.2s", opacity:readOnly?0.7:1 }}
+        onFocus={e=>!readOnly&&(e.target.style.borderColor=C.pink)} onBlur={e=>e.target.style.borderColor=C.border} />
     </div>
-  );
-};
+  </div>
+);
 
-const TArea = ({ label, value, onChange, placeholder, rows=8 }) => {
-  const [local, setLocal] = useState(value||"");
-  const composing = useRef(false);
-  useEffect(()=>{ if(!composing.current) setLocal(value||""); }, [value]);
-  return (
-    <div style={{ marginBottom:14 }}>
-      {label && <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5, letterSpacing:"0.04em" }}>{label}</label>}
-      <textarea
-        value={local}
-        onChange={e=>{ setLocal(e.target.value); if(!composing.current) onChange(e.target.value); }}
-        onCompositionStart={()=>{ composing.current=true; }}
-        onCompositionEnd={e=>{ composing.current=false; setLocal(e.target.value); onChange(e.target.value); }}
-        placeholder={placeholder}
-        rows={rows}
-        style={{ width:"100%", padding:"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", resize:"vertical", lineHeight:1.75 }}
-        onFocus={e=>e.target.style.borderColor=C.pink}
-        onBlur={e=>e.target.style.borderColor=C.border}
-      />
-    </div>
-  );
-};
+const TArea = ({ label, value, onChange, placeholder, rows=8 }) => (
+  <div style={{ marginBottom:14 }}>
+    {label && <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5, letterSpacing:"0.04em" }}>{label}</label>}
+    <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
+      style={{ width:"100%", padding:"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", resize:"vertical", lineHeight:1.75 }}
+      onFocus={e=>e.target.style.borderColor=C.pink} onBlur={e=>e.target.style.borderColor=C.border} />
+  </div>
+);
 
 const ErrBox = ({ msg }) => msg ? (
   <div style={{ background:"#fce7f3", border:`1px solid ${C.pinkLight}`, borderRadius:12, padding:"10px 14px", fontSize:13, color:C.pinkDark, marginBottom:14 }}>{msg}</div>
@@ -268,38 +241,26 @@ const FindAccount = ({ type, onGo }) => {
 };
 
 // ── COMPOSE FORM (외부 컴포넌트 — 리렌더 방지) ──────────────────────────────────
-const ComposeForm = ({ compose, setCompose, sendMail, folder, setView, fileRef, addFiles, ME }) => {
-  const isSelf = compose.mode === "self";
-  const accent = isSelf
-    ? { from:"#f472b6", to:"#c084fc", label:"내게 쓰기",      icon:"💌", desc:`내 편지함(${ME.email})에 저장돼요`, borderCol:"rgba(244,114,182,0.5)" }
-    : { from:"#60a5fa", to:"#6366f1", label:"다른 사람에게",   icon:"📤", desc:compose.to?`${compose.to} 에게 보내요`:"받는 사람 이메일을 입력해주세요", borderCol:"rgba(96,165,250,0.4)" };
+const ComposeForm = ({ initialCompose, sendMail, onCancel, fileRef, addFiles, ME }) => {
+  const [mode,    setMode]    = useState(initialCompose.mode    || "self");
+  const [to,      setTo]      = useState(initialCompose.to      || "");
+  const [subject, setSubject] = useState(initialCompose.subject || "");
+  const [body,    setBody]    = useState(initialCompose.body    || "");
+  const [attachments, setAttachments] = useState(initialCompose.attachments || []);
 
-  // 로컬 상태로 관리 — 부모 리렌더에 영향 안받음
-  const [to,      setTo]      = useState(compose.to||"");
-  const [subject, setSubject] = useState(compose.subject||"");
-  const [body,    setBody]    = useState(compose.body||"");
-  const toRef      = useRef(compose.to||"");
-  const subjectRef = useRef(compose.subject||"");
-  const bodyRef    = useRef(compose.body||"");
-
-  // 부모의 compose가 외부에서 바뀔 때만 동기화 (mode 전환 시)
-  const prevMode = useRef(compose.mode);
-  useEffect(() => {
-    if (prevMode.current !== compose.mode) {
-      prevMode.current = compose.mode;
-      const newTo = compose.mode==="self" ? ME.email : "";
-      setTo(newTo); toRef.current = newTo;
-    }
-  }, [compose.mode]);
+  const isSelf  = mode === "self";
+  const accent  = isSelf
+    ? { from:C.pink,  to:C.purple, pale:"rgba(244,114,182,0.08)", icon:"💌", desc:`내 편지함(${ME.email})에 저장돼요`, borderCol:"rgba(244,114,182,0.5)" }
+    : { from:C.blue,  to:"#6366f1", pale:"rgba(96,165,250,0.07)", icon:"📤", desc:to?`${to} 에게 보내요`:"받는 사람 이메일을 입력해주세요", borderCol:"rgba(96,165,250,0.4)" };
 
   const handleSend = () => {
-    if (!subjectRef.current||!bodyRef.current) return;
-    const isSelfSend = compose.mode==="self";
-    const finalTo = isSelfSend ? ME.email : toRef.current;
-    if (!isSelfSend && !finalTo) return;
-    setCompose(c=>({ ...c, to:finalTo, subject:subjectRef.current, body:bodyRef.current }));
-    // sendMail을 setTimeout으로 실행해 state 업데이트 후 호출
-    setTimeout(()=> sendMail(finalTo, subjectRef.current, bodyRef.current), 0);
+    sendMail({ mode, to, subject, body, attachments });
+  };
+
+  const handleAddFiles = e => {
+    const files = Array.from(e.target.files).map(f=>({ name:f.name, size:f.size, type:f.type }));
+    setAttachments(a=>[...a, ...files]);
+    e.target.value="";
   };
 
   return (
@@ -307,109 +268,98 @@ const ComposeForm = ({ compose, setCompose, sendMail, folder, setView, fileRef, 
       {/* Mode Switcher */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
         {[
-          { mode:"self",  icon:"💌", title:"내게 쓰기",     sub:"나만 볼 수 있는 나의 편지",  grad:"linear-gradient(135deg,#f472b6,#c084fc)", shadow:"rgba(244,114,182,0.4)" },
-          { mode:"other", icon:"📤", title:"다른 사람에게",  sub:"상대방에게 편지를 전달해요",  grad:"linear-gradient(135deg,#60a5fa,#6366f1)", shadow:"rgba(96,165,250,0.35)" },
+          { mode:"self",  icon:"💌", title:"내게 쓰기",      sub:"나만 볼 수 있는 나의 편지",  grad:`linear-gradient(135deg,${C.pink},${C.purple})`, shadow:"rgba(244,114,182,0.4)" },
+          { mode:"other", icon:"📤", title:"다른 사람에게",   sub:"상대방에게 편지를 전달해요",  grad:`linear-gradient(135deg,${C.blue},#6366f1)`,    shadow:"rgba(96,165,250,0.35)" },
         ].map(opt=>{
-          const active = compose.mode===opt.mode;
+          const active = mode===opt.mode;
           return (
-            <div key={opt.mode}
-              onClick={()=>setCompose(c=>({...c, mode:opt.mode, to:opt.mode==="self"?ME.email:""}))}
-              style={{ borderRadius:20, padding:"20px 22px", cursor:"pointer", background:active?opt.grad:"rgba(255,255,255,0.6)", border:active?"2px solid transparent":`2px solid rgba(249,168,212,0.4)`, boxShadow:active?`0 6px 24px ${opt.shadow}`:"0 8px 32px rgba(244,114,182,0.18)", transition:"all 0.25s", backdropFilter:"blur(12px)", position:"relative", overflow:"hidden" }}>
-              {active&&<div style={{ position:"absolute", top:-20, right:-20, fontSize:60, opacity:0.15 }}>{opt.icon}</div>}
+            <div key={opt.mode} onClick={()=>{ setMode(opt.mode); if(opt.mode==="self") setTo(ME.email); else setTo(""); }}
+              style={{ borderRadius:20, padding:"20px 22px", cursor:"pointer",
+                background: active ? opt.grad : "rgba(255,255,255,0.6)",
+                border: active ? "2px solid transparent" : `2px solid ${C.border}`,
+                boxShadow: active ? `0 6px 24px ${opt.shadow}` : C.shadow,
+                transition:"all 0.25s", backdropFilter:"blur(12px)", position:"relative", overflow:"hidden" }}>
+              {active && <div style={{ position:"absolute", top:-20, right:-20, fontSize:60, opacity:0.15 }}>{opt.icon}</div>}
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
                 <div style={{ fontSize:28 }}>{opt.icon}</div>
-                <span style={{ fontFamily:"'Nunito',sans-serif", fontWeight:900, fontSize:16, color:active?"#fff":"#6b21a8" }}>{opt.title}</span>
+                <span style={{ fontFamily:"'Nunito',sans-serif", fontWeight:900, fontSize:16, color: active?"#fff":C.text }}>{opt.title}</span>
                 {active&&<span style={{ marginLeft:"auto", background:"rgba(255,255,255,0.3)", borderRadius:99, padding:"3px 10px", fontSize:11, color:"#fff", fontWeight:700 }}>선택됨 ✓</span>}
               </div>
-              <p style={{ fontSize:12, color:active?"rgba(255,255,255,0.85)":"#c084fc", lineHeight:1.5 }}>{opt.sub}</p>
+              <p style={{ fontSize:12, color: active?"rgba(255,255,255,0.85)":C.textLight, lineHeight:1.5 }}>{opt.sub}</p>
             </div>
           );
         })}
       </div>
 
-      {/* Form */}
-      <div style={{ background:"rgba(255,255,255,0.78)", backdropFilter:"blur(18px)", border:`2px solid ${accent.borderCol}`, borderRadius:24, boxShadow:"0 8px 32px rgba(244,114,182,0.18)", padding:32, transition:"border 0.3s" }}>
+      <Glass style={{ padding:32, border:`2px solid ${accent.borderCol}`, transition:"border 0.3s" }}>
         {/* Mode banner */}
-        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 16px", borderRadius:14, marginBottom:22, background:`linear-gradient(135deg,${accent.from}22,${accent.to}22)`, border:`1px solid ${accent.borderCol}` }}>
+        <div className="modeSlide" key={mode} style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 16px", borderRadius:14, marginBottom:22, background:`linear-gradient(135deg,${accent.from}22,${accent.to}22)`, border:`1px solid ${accent.borderCol}` }}>
           <span style={{ fontSize:20 }}>{accent.icon}</span>
-          <span style={{ fontWeight:700, fontSize:13, color:"#6b21a8" }}>{accent.label} 모드</span>
-          <span style={{ fontSize:12, color:"#9d4edd", marginLeft:8 }}>{accent.desc}</span>
+          <div>
+            <span style={{ fontWeight:700, fontSize:13, color:C.text }}>{isSelf?"내게 쓰기":"다른 사람에게"} 모드</span>
+            <span style={{ fontSize:12, color:C.textMid, marginLeft:8 }}>{accent.desc}</span>
+          </div>
         </div>
 
-        {/* 받는 사람 */}
-        {!isSelf ? (
+        {!isSelf && (
           <div style={{ marginBottom:14 }}>
-            <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#9d4edd", marginBottom:5 }}>받는 사람</label>
+            <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5 }}>받는 사람</label>
             <div style={{ position:"relative" }}>
               <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>📬</span>
-              <input
-                type="text"
-                value={to}
-                onChange={e=>{ setTo(e.target.value); toRef.current=e.target.value; }}
-                placeholder="상대방 이메일 주소를 입력해요"
-                style={{ width:"100%", padding:"11px 14px 11px 40px", borderRadius:13, border:"1.5px solid rgba(249,168,212,0.4)", background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:"#6b21a8", outline:"none" }}
-                onFocus={e=>e.target.style.borderColor="#f472b6"}
-                onBlur={e=>e.target.style.borderColor="rgba(249,168,212,0.4)"}
-              />
+              <input value={to} onChange={e=>setTo(e.target.value)} placeholder="상대방 이메일 주소를 입력해요"
+                style={{ width:"100%", padding:"11px 14px 11px 40px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none" }}
+                onFocus={e=>e.target.style.borderColor=C.pink} onBlur={e=>e.target.style.borderColor=C.border} />
             </div>
           </div>
-        ) : (
-          <div style={{ marginBottom:14, padding:"10px 14px", background:"rgba(244,114,182,0.08)", borderRadius:12, fontSize:12, color:"#9d4edd", display:"flex", alignItems:"center", gap:8 }}>
+        )}
+
+        {isSelf && (
+          <div style={{ marginBottom:14, padding:"10px 14px", background:"rgba(244,114,182,0.08)", borderRadius:12, fontSize:12, color:C.textMid, display:"flex", alignItems:"center", gap:8 }}>
             <span>🐰</span> 받는 사람: <strong>{ME.email}</strong> (나)
           </div>
         )}
 
         {/* 제목 */}
         <div style={{ marginBottom:14 }}>
-          <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#9d4edd", marginBottom:5 }}>제목</label>
+          <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5 }}>제목</label>
           <div style={{ position:"relative" }}>
             <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>✦</span>
-            <input
-              type="text"
-              value={subject}
-              onChange={e=>{ setSubject(e.target.value); subjectRef.current=e.target.value; }}
-              placeholder="편지 제목을 써줘요 🌸"
-              style={{ width:"100%", padding:"11px 14px 11px 40px", borderRadius:13, border:"1.5px solid rgba(249,168,212,0.4)", background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:"#6b21a8", outline:"none" }}
-              onFocus={e=>e.target.style.borderColor="#f472b6"}
-              onBlur={e=>e.target.style.borderColor="rgba(249,168,212,0.4)"}
-            />
+            <input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="편지 제목을 써줘요 🌸"
+              style={{ width:"100%", padding:"11px 14px 11px 40px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none" }}
+              onFocus={e=>e.target.style.borderColor=C.pink} onBlur={e=>e.target.style.borderColor=C.border} />
           </div>
         </div>
 
         {/* 내용 */}
         <div style={{ marginBottom:14 }}>
-          <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#9d4edd", marginBottom:5 }}>내용</label>
-          <textarea
-            value={body}
-            onChange={e=>{ setBody(e.target.value); bodyRef.current=e.target.value; }}
+          <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5 }}>내용</label>
+          <textarea value={body} onChange={e=>setBody(e.target.value)}
             placeholder={isSelf?"오늘의 기분, 메모, 다짐... 뭐든 적어봐요 ✨":"소중한 마음을 담아 써봐요... ✨"}
             rows={9}
-            style={{ width:"100%", padding:"11px 14px", borderRadius:13, border:"1.5px solid rgba(249,168,212,0.4)", background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:"#6b21a8", outline:"none", resize:"vertical", lineHeight:1.75 }}
-            onFocus={e=>e.target.style.borderColor="#f472b6"}
-            onBlur={e=>e.target.style.borderColor="rgba(249,168,212,0.4)"}
-          />
+            style={{ width:"100%", padding:"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", resize:"vertical", lineHeight:1.75 }}
+            onFocus={e=>e.target.style.borderColor=C.pink} onBlur={e=>e.target.style.borderColor=C.border} />
         </div>
 
         {/* 첨부파일 */}
         <div style={{ marginBottom:20 }}>
-          <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#9d4edd", marginBottom:8 }}>📎 파일 첨부</label>
-          <input ref={fileRef} type="file" multiple onChange={addFiles} style={{ display:"none" }} />
-          <div style={{ border:"2px dashed rgba(249,168,212,0.4)", borderRadius:14, padding:"14px 18px", cursor:"pointer", background:"rgba(255,255,255,0.4)", textAlign:"center" }}
+          <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:8 }}>📎 파일 첨부</label>
+          <input ref={fileRef} type="file" multiple onChange={handleAddFiles} style={{ display:"none" }} />
+          <div style={{ border:`2px dashed ${C.border}`, borderRadius:14, padding:"14px 18px", cursor:"pointer", background:"rgba(255,255,255,0.4)", transition:"border 0.2s", textAlign:"center" }}
             onClick={()=>fileRef.current.click()}
-            onMouseEnter={e=>e.currentTarget.style.borderColor="#f472b6"}
-            onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(249,168,212,0.4)"}>
+            onMouseEnter={e=>e.currentTarget.style.borderColor=C.pink}
+            onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
             <div style={{ fontSize:24, marginBottom:4 }}>📎</div>
-            <p style={{ fontSize:12, color:"#9d4edd", fontWeight:600 }}>클릭해서 파일 추가</p>
-            <p style={{ fontSize:11, color:"#c084fc" }}>모든 형식 · 여러 파일 가능</p>
+            <p style={{ fontSize:12, color:C.textMid, fontWeight:600 }}>클릭해서 파일 추가</p>
+            <p style={{ fontSize:11, color:C.textLight }}>모든 형식 · 여러 파일 가능</p>
           </div>
-          {compose.attachments.length>0&&(
+          {attachments.length>0&&(
             <div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:8 }}>
-              {compose.attachments.map((f,i)=>(
-                <div key={i} style={{ display:"flex", alignItems:"center", gap:7, background:"rgba(249,168,212,0.15)", border:"1px solid rgba(249,168,212,0.4)", borderRadius:10, padding:"6px 12px", fontSize:12, color:"#6b21a8" }}>
+              {attachments.map((f,i)=>(
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:7, background:"rgba(249,168,212,0.15)", border:`1px solid ${C.border}`, borderRadius:10, padding:"6px 12px", fontSize:12, color:C.text }}>
                   <span style={{ fontSize:15 }}>{fileIcon(f.name)}</span>
                   <span style={{ maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:600 }}>{f.name}</span>
-                  <span style={{ color:"#c084fc", fontSize:10 }}>{fmtSize(f.size)}</span>
-                  <button onClick={()=>setCompose(c=>({...c,attachments:c.attachments.filter((_,idx)=>idx!==i)}))} style={{ background:"none", border:"none", cursor:"pointer", color:"#ec4899", fontSize:15, padding:0 }}>×</button>
+                  <span style={{ color:C.textLight, fontSize:10 }}>{fmtSize(f.size)}</span>
+                  <button onClick={()=>setAttachments(a=>a.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", cursor:"pointer", color:C.pinkDark, fontSize:15, padding:0 }}>×</button>
                 </div>
               ))}
             </div>
@@ -417,20 +367,17 @@ const ComposeForm = ({ compose, setCompose, sendMail, folder, setView, fileRef, 
         </div>
 
         <div style={{ display:"flex", gap:12 }}>
-          <button
-            onClick={handleSend}
-            disabled={!subject||!body}
-            style={{ border:"none", borderRadius:99, padding:"11px 26px", fontFamily:"'Quicksand',sans-serif", fontWeight:700, fontSize:14, cursor:(!subject||!body)?"not-allowed":"pointer", opacity:(!subject||!body)?0.55:1, display:"inline-flex", alignItems:"center", gap:6, background:isSelf?"linear-gradient(135deg,#f472b6,#c084fc)":"linear-gradient(135deg,#60a5fa,#3b82f6)", color:"#fff", boxShadow:isSelf?"0 4px 18px rgba(244,114,182,0.35)":"0 4px 18px rgba(96,165,250,0.35)" }}>
+          <Btn onClick={handleSend} disabled={!subject||!body} variant={isSelf?"primary":"blue"}>
             {isSelf?"💌 내게 보내기":"📤 보내기"}
-          </button>
-          <button onClick={()=>window.history.back()} style={{ border:"1.5px solid rgba(249,168,212,0.4)", borderRadius:99, padding:"11px 26px", fontFamily:"'Quicksand',sans-serif", fontWeight:700, fontSize:14, cursor:"pointer", background:"rgba(255,255,255,0.55)", color:"#6b21a8" }}>취소</button>
+          </Btn>
+          <Btn variant="ghost" onClick={onCancel}>취소</Btn>
         </div>
-      </div>
+      </Glass>
     </div>
   );
 };
 
-// ── MAIN APP ───────────────────────────────────────────────────────────────────
+
 const MailApp = ({ onLogout }) => {
   const [mails,  setMails]    = useState(SEED);
   const [folder, setFolder]   = useState("home");
@@ -480,30 +427,26 @@ const MailApp = ({ onLogout }) => {
     return base;
   };
 
-  const sendMail = (toArg, subjectArg, bodyArg) => {
-    const finalSubject = subjectArg ?? compose.subject;
-    const finalBody    = bodyArg    ?? compose.body;
-    if (!finalSubject||!finalBody) return;
-    const isSelf = compose.mode==="self";
-    const to = isSelf ? ME.email : (toArg ?? compose.to);
+  const sendMail = (data) => {
+    const { mode, to: toAddr, subject, body, attachments } = data;
+    if (!subject||!body) return;
+    const isSelf = mode==="self";
+    const to = isSelf ? ME.email : toAddr;
     if (!isSelf && !to) return showToast("받는 사람 이메일을 입력해주세요 📬");
     const nm = {
       id: nextId.current++,
-      from: "me", to,
-      subject: finalSubject,
-      body: finalBody,
+      from: "me", to, subject, body,
       date: NOW(),
       read: false, starred: false,
       folder: isSelf ? "tome" : "sent",
-      attachments: compose.attachments,
+      attachments,
       receipt: isSelf ? null : { confirmed:false, readAt:null },
     };
     setMails(ms=>[nm,...ms]);
-    setCompose({ mode:"self", to:"", subject:"", body:"", attachments:[] });
     setFolder(isSelf?"tome":"sent");
     setView("list");
     showToast(isSelf?"💌 내게 편지를 보냈어요!":"📤 편지를 보냈어요!");
-  };
+  };;
 
   // 수신확인 simulate: 50% chance read, always marks confirmed
   const checkReceipt = (id, e) => {
@@ -621,18 +564,16 @@ const MailApp = ({ onLogout }) => {
   // ── COMPOSE ─────────────────────────────────────────────────────────────────
   const ComposeView = () => (
     <ComposeForm
-      compose={compose}
-      setCompose={setCompose}
+      initialCompose={compose}
       sendMail={sendMail}
-      folder={folder}
-      setView={setView}
+      onCancel={()=>setView(folder==="home"?"home":"list")}
       fileRef={fileRef}
       addFiles={addFiles}
       ME={ME}
     />
   );
 
-  // ── READ ─────────────────────────────────────────────────────────────────────
+    // ── READ ─────────────────────────────────────────────────────────────────────
   const ReadView = () => {
     if (!selected) return null;
     const m = mails.find(x=>x.id===selected.id)||selected;
