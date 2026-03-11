@@ -121,7 +121,9 @@ const Btn = ({ children, onClick, variant="primary", style, disabled }) => {
 };
 
 const Field = ({ label, type="text", value, onChange, placeholder, icon, readOnly }) => {
+  const [local, setLocal] = useState(value||"");
   const composing = useRef(false);
+  useEffect(()=>{ if(!composing.current) setLocal(value||""); }, [value]);
   return (
     <div style={{ marginBottom:14 }}>
       {label && <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5, letterSpacing:"0.04em" }}>{label}</label>}
@@ -129,11 +131,10 @@ const Field = ({ label, type="text", value, onChange, placeholder, icon, readOnl
         {icon && <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>{icon}</span>}
         <input
           type={type}
-          defaultValue={value}
-          key={undefined}
-          onChange={e=>{ if(!composing.current && onChange) onChange(e.target.value); }}
+          value={local}
+          onChange={e=>{ setLocal(e.target.value); if(!composing.current && onChange) onChange(e.target.value); }}
           onCompositionStart={()=>{ composing.current=true; }}
-          onCompositionEnd={e=>{ composing.current=false; if(onChange) onChange(e.target.value); }}
+          onCompositionEnd={e=>{ composing.current=false; setLocal(e.target.value); if(onChange) onChange(e.target.value); }}
           placeholder={placeholder}
           readOnly={readOnly}
           style={{ width:"100%", padding:icon?"11px 14px 11px 40px":"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", transition:"border 0.2s", opacity:readOnly?0.7:1 }}
@@ -146,15 +147,17 @@ const Field = ({ label, type="text", value, onChange, placeholder, icon, readOnl
 };
 
 const TArea = ({ label, value, onChange, placeholder, rows=8 }) => {
+  const [local, setLocal] = useState(value||"");
   const composing = useRef(false);
+  useEffect(()=>{ if(!composing.current) setLocal(value||""); }, [value]);
   return (
     <div style={{ marginBottom:14 }}>
       {label && <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:5, letterSpacing:"0.04em" }}>{label}</label>}
       <textarea
-        defaultValue={value}
-        onChange={e=>{ if(!composing.current) onChange(e.target.value); }}
+        value={local}
+        onChange={e=>{ setLocal(e.target.value); if(!composing.current) onChange(e.target.value); }}
         onCompositionStart={()=>{ composing.current=true; }}
-        onCompositionEnd={e=>{ composing.current=false; onChange(e.target.value); }}
+        onCompositionEnd={e=>{ composing.current=false; setLocal(e.target.value); onChange(e.target.value); }}
         placeholder={placeholder}
         rows={rows}
         style={{ width:"100%", padding:"11px 14px", borderRadius:13, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:C.text, outline:"none", resize:"vertical", lineHeight:1.75 }}
