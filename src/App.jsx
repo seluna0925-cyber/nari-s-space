@@ -267,6 +267,169 @@ const FindAccount = ({ type, onGo }) => {
   );
 };
 
+// ── COMPOSE FORM (외부 컴포넌트 — 리렌더 방지) ──────────────────────────────────
+const ComposeForm = ({ compose, setCompose, sendMail, folder, setView, fileRef, addFiles, ME }) => {
+  const isSelf = compose.mode === "self";
+  const accent = isSelf
+    ? { from:"#f472b6", to:"#c084fc", label:"내게 쓰기",      icon:"💌", desc:`내 편지함(${ME.email})에 저장돼요`, borderCol:"rgba(244,114,182,0.5)" }
+    : { from:"#60a5fa", to:"#6366f1", label:"다른 사람에게",   icon:"📤", desc:compose.to?`${compose.to} 에게 보내요`:"받는 사람 이메일을 입력해주세요", borderCol:"rgba(96,165,250,0.4)" };
+
+  // 로컬 상태로 관리 — 부모 리렌더에 영향 안받음
+  const [to,      setTo]      = useState(compose.to||"");
+  const [subject, setSubject] = useState(compose.subject||"");
+  const [body,    setBody]    = useState(compose.body||"");
+  const toRef      = useRef(compose.to||"");
+  const subjectRef = useRef(compose.subject||"");
+  const bodyRef    = useRef(compose.body||"");
+
+  // 부모의 compose가 외부에서 바뀔 때만 동기화 (mode 전환 시)
+  const prevMode = useRef(compose.mode);
+  useEffect(() => {
+    if (prevMode.current !== compose.mode) {
+      prevMode.current = compose.mode;
+      const newTo = compose.mode==="self" ? ME.email : "";
+      setTo(newTo); toRef.current = newTo;
+    }
+  }, [compose.mode]);
+
+  const handleSend = () => {
+    if (!subjectRef.current||!bodyRef.current) return;
+    const isSelfSend = compose.mode==="self";
+    const finalTo = isSelfSend ? ME.email : toRef.current;
+    if (!isSelfSend && !finalTo) return;
+    setCompose(c=>({ ...c, to:finalTo, subject:subjectRef.current, body:bodyRef.current }));
+    // sendMail을 setTimeout으로 실행해 state 업데이트 후 호출
+    setTimeout(()=> sendMail(finalTo, subjectRef.current, bodyRef.current), 0);
+  };
+
+  return (
+    <div style={{ animation:"fadeIn 0.4s ease" }}>
+      {/* Mode Switcher */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
+        {[
+          { mode:"self",  icon:"💌", title:"내게 쓰기",     sub:"나만 볼 수 있는 나의 편지",  grad:"linear-gradient(135deg,#f472b6,#c084fc)", shadow:"rgba(244,114,182,0.4)" },
+          { mode:"other", icon:"📤", title:"다른 사람에게",  sub:"상대방에게 편지를 전달해요",  grad:"linear-gradient(135deg,#60a5fa,#6366f1)", shadow:"rgba(96,165,250,0.35)" },
+        ].map(opt=>{
+          const active = compose.mode===opt.mode;
+          return (
+            <div key={opt.mode}
+              onClick={()=>setCompose(c=>({...c, mode:opt.mode, to:opt.mode==="self"?ME.email:""}))}
+              style={{ borderRadius:20, padding:"20px 22px", cursor:"pointer", background:active?opt.grad:"rgba(255,255,255,0.6)", border:active?"2px solid transparent":`2px solid rgba(249,168,212,0.4)`, boxShadow:active?`0 6px 24px ${opt.shadow}`:"0 8px 32px rgba(244,114,182,0.18)", transition:"all 0.25s", backdropFilter:"blur(12px)", position:"relative", overflow:"hidden" }}>
+              {active&&<div style={{ position:"absolute", top:-20, right:-20, fontSize:60, opacity:0.15 }}>{opt.icon}</div>}
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+                <div style={{ fontSize:28 }}>{opt.icon}</div>
+                <span style={{ fontFamily:"'Nunito',sans-serif", fontWeight:900, fontSize:16, color:active?"#fff":"#6b21a8" }}>{opt.title}</span>
+                {active&&<span style={{ marginLeft:"auto", background:"rgba(255,255,255,0.3)", borderRadius:99, padding:"3px 10px", fontSize:11, color:"#fff", fontWeight:700 }}>선택됨 ✓</span>}
+              </div>
+              <p style={{ fontSize:12, color:active?"rgba(255,255,255,0.85)":"#c084fc", lineHeight:1.5 }}>{opt.sub}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Form */}
+      <div style={{ background:"rgba(255,255,255,0.78)", backdropFilter:"blur(18px)", border:`2px solid ${accent.borderCol}`, borderRadius:24, boxShadow:"0 8px 32px rgba(244,114,182,0.18)", padding:32, transition:"border 0.3s" }}>
+        {/* Mode banner */}
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 16px", borderRadius:14, marginBottom:22, background:`linear-gradient(135deg,${accent.from}22,${accent.to}22)`, border:`1px solid ${accent.borderCol}` }}>
+          <span style={{ fontSize:20 }}>{accent.icon}</span>
+          <span style={{ fontWeight:700, fontSize:13, color:"#6b21a8" }}>{accent.label} 모드</span>
+          <span style={{ fontSize:12, color:"#9d4edd", marginLeft:8 }}>{accent.desc}</span>
+        </div>
+
+        {/* 받는 사람 */}
+        {!isSelf ? (
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#9d4edd", marginBottom:5 }}>받는 사람</label>
+            <div style={{ position:"relative" }}>
+              <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>📬</span>
+              <input
+                type="text"
+                value={to}
+                onChange={e=>{ setTo(e.target.value); toRef.current=e.target.value; }}
+                placeholder="상대방 이메일 주소를 입력해요"
+                style={{ width:"100%", padding:"11px 14px 11px 40px", borderRadius:13, border:"1.5px solid rgba(249,168,212,0.4)", background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:"#6b21a8", outline:"none" }}
+                onFocus={e=>e.target.style.borderColor="#f472b6"}
+                onBlur={e=>e.target.style.borderColor="rgba(249,168,212,0.4)"}
+              />
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginBottom:14, padding:"10px 14px", background:"rgba(244,114,182,0.08)", borderRadius:12, fontSize:12, color:"#9d4edd", display:"flex", alignItems:"center", gap:8 }}>
+            <span>🐰</span> 받는 사람: <strong>{ME.email}</strong> (나)
+          </div>
+        )}
+
+        {/* 제목 */}
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#9d4edd", marginBottom:5 }}>제목</label>
+          <div style={{ position:"relative" }}>
+            <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>✦</span>
+            <input
+              type="text"
+              value={subject}
+              onChange={e=>{ setSubject(e.target.value); subjectRef.current=e.target.value; }}
+              placeholder="편지 제목을 써줘요 🌸"
+              style={{ width:"100%", padding:"11px 14px 11px 40px", borderRadius:13, border:"1.5px solid rgba(249,168,212,0.4)", background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:"#6b21a8", outline:"none" }}
+              onFocus={e=>e.target.style.borderColor="#f472b6"}
+              onBlur={e=>e.target.style.borderColor="rgba(249,168,212,0.4)"}
+            />
+          </div>
+        </div>
+
+        {/* 내용 */}
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#9d4edd", marginBottom:5 }}>내용</label>
+          <textarea
+            value={body}
+            onChange={e=>{ setBody(e.target.value); bodyRef.current=e.target.value; }}
+            placeholder={isSelf?"오늘의 기분, 메모, 다짐... 뭐든 적어봐요 ✨":"소중한 마음을 담아 써봐요... ✨"}
+            rows={9}
+            style={{ width:"100%", padding:"11px 14px", borderRadius:13, border:"1.5px solid rgba(249,168,212,0.4)", background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:14, color:"#6b21a8", outline:"none", resize:"vertical", lineHeight:1.75 }}
+            onFocus={e=>e.target.style.borderColor="#f472b6"}
+            onBlur={e=>e.target.style.borderColor="rgba(249,168,212,0.4)"}
+          />
+        </div>
+
+        {/* 첨부파일 */}
+        <div style={{ marginBottom:20 }}>
+          <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#9d4edd", marginBottom:8 }}>📎 파일 첨부</label>
+          <input ref={fileRef} type="file" multiple onChange={addFiles} style={{ display:"none" }} />
+          <div style={{ border:"2px dashed rgba(249,168,212,0.4)", borderRadius:14, padding:"14px 18px", cursor:"pointer", background:"rgba(255,255,255,0.4)", textAlign:"center" }}
+            onClick={()=>fileRef.current.click()}
+            onMouseEnter={e=>e.currentTarget.style.borderColor="#f472b6"}
+            onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(249,168,212,0.4)"}>
+            <div style={{ fontSize:24, marginBottom:4 }}>📎</div>
+            <p style={{ fontSize:12, color:"#9d4edd", fontWeight:600 }}>클릭해서 파일 추가</p>
+            <p style={{ fontSize:11, color:"#c084fc" }}>모든 형식 · 여러 파일 가능</p>
+          </div>
+          {compose.attachments.length>0&&(
+            <div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:8 }}>
+              {compose.attachments.map((f,i)=>(
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:7, background:"rgba(249,168,212,0.15)", border:"1px solid rgba(249,168,212,0.4)", borderRadius:10, padding:"6px 12px", fontSize:12, color:"#6b21a8" }}>
+                  <span style={{ fontSize:15 }}>{fileIcon(f.name)}</span>
+                  <span style={{ maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:600 }}>{f.name}</span>
+                  <span style={{ color:"#c084fc", fontSize:10 }}>{fmtSize(f.size)}</span>
+                  <button onClick={()=>setCompose(c=>({...c,attachments:c.attachments.filter((_,idx)=>idx!==i)}))} style={{ background:"none", border:"none", cursor:"pointer", color:"#ec4899", fontSize:15, padding:0 }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display:"flex", gap:12 }}>
+          <button
+            onClick={handleSend}
+            disabled={!subject||!body}
+            style={{ border:"none", borderRadius:99, padding:"11px 26px", fontFamily:"'Quicksand',sans-serif", fontWeight:700, fontSize:14, cursor:(!subject||!body)?"not-allowed":"pointer", opacity:(!subject||!body)?0.55:1, display:"inline-flex", alignItems:"center", gap:6, background:isSelf?"linear-gradient(135deg,#f472b6,#c084fc)":"linear-gradient(135deg,#60a5fa,#3b82f6)", color:"#fff", boxShadow:isSelf?"0 4px 18px rgba(244,114,182,0.35)":"0 4px 18px rgba(96,165,250,0.35)" }}>
+            {isSelf?"💌 내게 보내기":"📤 보내기"}
+          </button>
+          <button onClick={()=>window.history.back()} style={{ border:"1.5px solid rgba(249,168,212,0.4)", borderRadius:99, padding:"11px 26px", fontFamily:"'Quicksand',sans-serif", fontWeight:700, fontSize:14, cursor:"pointer", background:"rgba(255,255,255,0.55)", color:"#6b21a8" }}>취소</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── MAIN APP ───────────────────────────────────────────────────────────────────
 const MailApp = ({ onLogout }) => {
   const [mails,  setMails]    = useState(SEED);
@@ -317,28 +480,28 @@ const MailApp = ({ onLogout }) => {
     return base;
   };
 
-  const sendMail = () => {
-    if (!compose.subject||!compose.body) return;
+  const sendMail = (toArg, subjectArg, bodyArg) => {
+    const finalSubject = subjectArg ?? compose.subject;
+    const finalBody    = bodyArg    ?? compose.body;
+    if (!finalSubject||!finalBody) return;
     const isSelf = compose.mode==="self";
-    const to     = isSelf ? ME.email : compose.to;
+    const to = isSelf ? ME.email : (toArg ?? compose.to);
     if (!isSelf && !to) return showToast("받는 사람 이메일을 입력해주세요 📬");
     const nm = {
       id: nextId.current++,
       from: "me", to,
-      subject: compose.subject,
-      body: compose.body,
+      subject: finalSubject,
+      body: finalBody,
       date: NOW(),
       read: false, starred: false,
       folder: isSelf ? "tome" : "sent",
       attachments: compose.attachments,
       receipt: isSelf ? null : { confirmed:false, readAt:null },
     };
-    const destFolder = isSelf?"tome":"sent";
     setMails(ms=>[nm,...ms]);
     setCompose({ mode:"self", to:"", subject:"", body:"", attachments:[] });
-    setFolder(destFolder);
+    setFolder(isSelf?"tome":"sent");
     setView("list");
-    pushHistory("list", destFolder);
     showToast(isSelf?"💌 내게 편지를 보냈어요!":"📤 편지를 보냈어요!");
   };
 
@@ -456,110 +619,18 @@ const MailApp = ({ onLogout }) => {
   };
 
   // ── COMPOSE ─────────────────────────────────────────────────────────────────
-  const ComposeView = () => {
-    const isSelf  = compose.mode === "self";
-    const isOther = compose.mode === "other";
-
-    // Dynamic accent colors per mode
-    const accent = isSelf
-      ? { from:C.pink,  to:C.purple, pale:"rgba(244,114,182,0.08)", label:"내게 쓰기",      icon:"💌", desc:`내 편지함(${ME.email})에 저장돼요`, borderCol:"rgba(244,114,182,0.5)" }
-      : { from:C.blue,  to:"#6366f1", pale:"rgba(96,165,250,0.07)",  label:"다른 사람에게", icon:"📤", desc:compose.to?`${compose.to} 에게 보내요`:"받는 사람 이메일을 입력해주세요", borderCol:"rgba(96,165,250,0.4)" };
-
-    return (
-      <div style={{ animation:"fadeIn 0.4s ease" }}>
-        {/* ── Mode Switcher ── */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
-          {[
-            { mode:"self",  icon:"💌", title:"내게 쓰기",      sub:"나만 볼 수 있는 나의 편지",     grad:`linear-gradient(135deg,${C.pink},${C.purple})`, shadow:"rgba(244,114,182,0.4)" },
-            { mode:"other", icon:"📤", title:"다른 사람에게",   sub:"상대방에게 편지를 전달해요",      grad:`linear-gradient(135deg,${C.blue},#6366f1)`,    shadow:"rgba(96,165,250,0.35)" },
-          ].map(opt=>{
-            const active = compose.mode===opt.mode;
-            return (
-              <div key={opt.mode} onClick={()=>setCompose(c=>({...c,mode:opt.mode,to:opt.mode==="self"?ME.email:""}))}
-                style={{
-                  borderRadius:20, padding:"20px 22px", cursor:"pointer",
-                  background: active ? opt.grad : "rgba(255,255,255,0.6)",
-                  border: active ? "2px solid transparent" : `2px solid ${C.border}`,
-                  boxShadow: active ? `0 6px 24px ${opt.shadow}` : C.shadow,
-                  transition:"all 0.25s",
-                  backdropFilter:"blur(12px)",
-                  position:"relative", overflow:"hidden",
-                }}>
-                {active && <div style={{ position:"absolute", top:-20, right:-20, fontSize:60, opacity:0.15 }}>{opt.icon}</div>}
-                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
-                  <div style={{ fontSize:28, filter: active?"drop-shadow(0 2px 6px rgba(0,0,0,0.2))":"none" }}>{opt.icon}</div>
-                  <span style={{ fontFamily:"'Nunito',sans-serif", fontWeight:900, fontSize:16, color: active?"#fff":C.text }}>{opt.title}</span>
-                  {active&&<span style={{ marginLeft:"auto", background:"rgba(255,255,255,0.3)", borderRadius:99, padding:"3px 10px", fontSize:11, color:"#fff", fontWeight:700 }}>선택됨 ✓</span>}
-                </div>
-                <p style={{ fontSize:12, color: active?"rgba(255,255,255,0.85)":C.textLight, lineHeight:1.5 }}>{opt.sub}</p>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* ── Form ── */}
-        <Glass style={{ padding:32, border:`2px solid ${accent.borderCol}`, transition:"border 0.3s" }}>
-          {/* Mode banner */}
-          <div className="modeSlide" key={compose.mode} style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 16px", borderRadius:14, marginBottom:22, background:`linear-gradient(135deg,${accent.from}22,${accent.to}22)`, border:`1px solid ${accent.borderCol}` }}>
-            <span style={{ fontSize:20 }}>{accent.icon}</span>
-            <div>
-              <span style={{ fontWeight:700, fontSize:13, color:C.text }}>{accent.label} 모드</span>
-              <span style={{ fontSize:12, color:C.textMid, marginLeft:8 }}>{accent.desc}</span>
-            </div>
-          </div>
-
-          {/* To field — only shown for "other" mode */}
-          {isOther && (
-            <div className="modeSlide">
-              <Field label="받는 사람" icon="📬" value={compose.to} onChange={v=>setCompose(c=>({...c,to:v}))} placeholder="상대방 이메일 주소를 입력해요" />
-            </div>
-          )}
-
-          {isSelf && (
-            <div style={{ marginBottom:14, padding:"10px 14px", background:"rgba(244,114,182,0.08)", borderRadius:12, fontSize:12, color:C.textMid, display:"flex", alignItems:"center", gap:8 }}>
-              <span>🐰</span> 받는 사람: <strong>{ME.email}</strong> (나)
-            </div>
-          )}
-
-          <Field label="제목" icon="✦" value={compose.subject} onChange={v=>setCompose(c=>({...c,subject:v}))} placeholder="편지 제목을 써줘요 🌸" />
-          <TArea label="내용" value={compose.body} onChange={v=>setCompose(c=>({...c,body:v}))} placeholder={isSelf?"오늘의 기분, 메모, 다짐... 뭐든 적어봐요 ✨":"소중한 마음을 담아 써봐요... ✨"} rows={9} />
-
-          {/* Attachments */}
-          <div style={{ marginBottom:20 }}>
-            <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid, marginBottom:8 }}>📎 파일 첨부</label>
-            <input ref={fileRef} type="file" multiple onChange={addFiles} style={{ display:"none" }} />
-            <div style={{ border:`2px dashed ${C.border}`, borderRadius:14, padding:"14px 18px", cursor:"pointer", background:"rgba(255,255,255,0.4)", transition:"border 0.2s", textAlign:"center" }}
-              onClick={()=>fileRef.current.click()}
-              onMouseEnter={e=>e.currentTarget.style.borderColor=C.pink}
-              onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-              <div style={{ fontSize:24, marginBottom:4 }}>📎</div>
-              <p style={{ fontSize:12, color:C.textMid, fontWeight:600 }}>클릭해서 파일 추가</p>
-              <p style={{ fontSize:11, color:C.textLight }}>모든 형식 · 여러 파일 가능</p>
-            </div>
-            {compose.attachments.length>0&&(
-              <div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:8 }}>
-                {compose.attachments.map((f,i)=>(
-                  <div key={i} style={{ display:"flex", alignItems:"center", gap:7, background:"rgba(249,168,212,0.15)", border:`1px solid ${C.border}`, borderRadius:10, padding:"6px 12px", fontSize:12, color:C.text }}>
-                    <span style={{ fontSize:15 }}>{fileIcon(f.name)}</span>
-                    <span style={{ maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:600 }}>{f.name}</span>
-                    <span style={{ color:C.textLight, fontSize:10 }}>{fmtSize(f.size)}</span>
-                    <button onClick={()=>setCompose(c=>({...c,attachments:c.attachments.filter((_,idx)=>idx!==i)}))} style={{ background:"none", border:"none", cursor:"pointer", color:C.pinkDark, fontSize:15, padding:0 }}>×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div style={{ display:"flex", gap:12 }}>
-            <Btn onClick={sendMail} disabled={!compose.subject||!compose.body} variant={isSelf?"primary":"blue"}>
-              {isSelf?"💌 내게 보내기":"📤 보내기"}
-            </Btn>
-            <Btn variant="ghost" onClick={()=>window.history.back()}>취소</Btn>
-          </div>
-        </Glass>
-      </div>
-    );
-  };
+  const ComposeView = () => (
+    <ComposeForm
+      compose={compose}
+      setCompose={setCompose}
+      sendMail={sendMail}
+      folder={folder}
+      setView={setView}
+      fileRef={fileRef}
+      addFiles={addFiles}
+      ME={ME}
+    />
+  );
 
   // ── READ ─────────────────────────────────────────────────────────────────────
   const ReadView = () => {
