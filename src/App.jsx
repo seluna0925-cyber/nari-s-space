@@ -75,7 +75,9 @@ const FOLDERS = [
   { key:"trash",   label:"휴지통",        icon:"🗑️" },
 ];
 
-const fmtSize = b => b<1024?b+"B":b<1048576?(b/1024).toFixed(1)+"KB":(b/1048576).toFixed(1)+"MB";
+const fmtSize  = b => b<1024?b+"B":b<1048576?(b/1024).toFixed(1)+"KB":(b/1048576).toFixed(1)+"MB";
+const isImgFile = name => ["jpg","jpeg","png","gif","webp","svg","bmp","avif"].includes((name||"").split(".").pop().toLowerCase());
+const dlFile    = f => { if(!f?.dataUrl) return; const a=document.createElement("a"); a.href=f.dataUrl; a.download=f.name; document.body.appendChild(a); a.click(); document.body.removeChild(a); };
 const fileIcon = name => {
   const ext = name.split(".").pop().toLowerCase();
   if (["jpg","jpeg","png","gif","webp","svg"].includes(ext)) return "🖼️";
@@ -361,11 +363,14 @@ const ComposeForm = ({ initialCompose, sendMail, onCancel, fileRef, addFiles, ME
           {attachments.length>0&&(
             <div style={{ marginTop:12 }}>
               {/* Image previews */}
-              {attachments.some(f=>f.dataUrl&&f.type?.startsWith("image/"))&&(
+              {attachments.some(f=>isImgFile(f.name))&&(
                 <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}>
-                  {attachments.map((f,i)=>f.dataUrl&&f.type?.startsWith("image/")?(
+                  {attachments.map((f,i)=>isImgFile(f.name)?(
                     <div key={i} style={{ position:"relative", borderRadius:12, overflow:"hidden", border:`2px solid ${C.border}` }}>
-                      <img src={f.dataUrl} alt={f.name} style={{ width:90, height:70, objectFit:"cover", display:"block" }} />
+                      {f.dataUrl
+                        ? <img src={f.dataUrl} alt={f.name} style={{ width:90, height:70, objectFit:"cover", display:"block" }} />
+                        : <div style={{ width:90, height:70, background:"#fce7f3", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>🖼️</div>
+                      }
                       <button onClick={()=>setAttachments(a=>a.filter((_,idx)=>idx!==i))}
                         style={{ position:"absolute", top:3, right:3, background:"rgba(236,72,153,0.85)", border:"none", borderRadius:"50%", width:18, height:18, cursor:"pointer", color:"#fff", fontSize:11, display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
                     </div>
@@ -623,242 +628,46 @@ const MailApp = ({ onLogout }) => {
         </div>
         {m.attachments?.length>0&&(
           <div style={{ marginBottom:24, padding:"18px 20px", background:"rgba(249,168,212,0.08)", borderRadius:16 }}>
-            <p style={{ fontSize:12, fontWeight:700, color:C.textMid, marginBottom:14 }}>📎 첨부 파일 ({m.attachments.length}개)</p>
-            {/* Image thumbnails */}
-            {m.attachments.some(f=>f.dataUrl&&f.type?.startsWith("image/"))&&(
+            <p style={{ fontSize:13, fontWeight:700, color:C.textMid, marginBottom:14 }}>📎 첨부 파일 ({m.attachments.length}개)</p>
+
+            {/* ── 이미지 썸네일 그리드 ── */}
+            {m.attachments.some(f=>isImgFile(f.name))&&(
               <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:14 }}>
-                {m.attachments.filter(f=>f.dataUrl&&f.type?.startsWith("image/")).map((f,i)=>(
-                  <div key={i} style={{ position:"relative", borderRadius:14, overflow:"hidden", border:`2px solid ${C.border}`, boxShadow:C.shadow, cursor:"pointer" }}
-                    onClick={()=>{ const a=document.createElement("a"); a.href=f.dataUrl; a.download=f.name; a.click(); }}>
-                    <img src={f.dataUrl} alt={f.name}
-                      style={{ width:130, height:100, objectFit:"cover", display:"block" }} />
-                    <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"linear-gradient(transparent,rgba(0,0,0,0.55))", padding:"18px 8px 6px", fontSize:10, color:"#fff", fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                      {f.name}
-                    </div>
-                    <div style={{ position:"absolute", top:6, right:6, background:"rgba(255,255,255,0.85)", borderRadius:99, padding:"2px 8px", fontSize:10, fontWeight:700, color:C.textMid }}>
-                      ⬇ 저장
+                {m.attachments.map((f,i)=> !isImgFile(f.name) ? null : (
+                  <div key={i} onClick={()=>dlFile(f)}
+                    style={{ position:"relative", borderRadius:14, overflow:"hidden", border:`2px solid ${C.border}`, boxShadow:C.shadow, cursor:"pointer", width:140, height:108, background:"#fce7f3", flexShrink:0 }}>
+                    {f.dataUrl
+                      ? <img src={f.dataUrl} alt={f.name} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                      : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36 }}>🖼️</div>
+                    }
+                    <div style={{ position:"absolute", inset:0, background:"linear-gradient(transparent 50%,rgba(0,0,0,0.55))", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"6px 8px" }}>
+                      <div style={{ fontSize:10, color:"#fff", fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</div>
+                      <div style={{ fontSize:10, color:"rgba(255,255,255,0.8)" }}>{fmtSize(f.size)} · ⬇ 저장</div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-            {/* Non-image files */}
-            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-              {m.attachments.filter(f=>!f.type?.startsWith("image/")).map((f,i)=>(
-                <div key={i} onClick={()=>{ if(f.dataUrl){ const a=document.createElement("a"); a.href=f.dataUrl; a.download=f.name; a.click(); } }}
-                  style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(255,255,255,0.75)", border:`1.5px solid ${C.border}`, borderRadius:14, padding:"12px 18px", cursor:f.dataUrl?"pointer":"default", transition:"all 0.2s", boxShadow:"0 2px 8px rgba(244,114,182,0.1)" }}
-                  onMouseEnter={e=>{ if(f.dataUrl) e.currentTarget.style.boxShadow="0 4px 18px rgba(244,114,182,0.25)"; }}
-                  onMouseLeave={e=>e.currentTarget.style.boxShadow="0 2px 8px rgba(244,114,182,0.1)"}>
-                  <span style={{ fontSize:26 }}>{fileIcon(f.name)}</span>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:700, color:C.text, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</div>
-                    <div style={{ fontSize:11, color:C.textLight, marginTop:2 }}>{fmtSize(f.size)} {f.dataUrl&&<span style={{ color:C.pink, marginLeft:4 }}>⬇ 클릭해서 저장</span>}</div>
-                  </div>
-                </div>
-              ))}
-              {/* Image files also shown as list items */}
-              {m.attachments.filter(f=>f.dataUrl&&f.type?.startsWith("image/")).map((f,i)=>(
-                <div key={"img-"+i} onClick={()=>{ const a=document.createElement("a"); a.href=f.dataUrl; a.download=f.name; a.click(); }}
-                  style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(255,255,255,0.75)", border:`1.5px solid ${C.border}`, borderRadius:14, padding:"12px 18px", cursor:"pointer", transition:"all 0.2s", boxShadow:"0 2px 8px rgba(244,114,182,0.1)" }}
-                  onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 18px rgba(244,114,182,0.25)"}
-                  onMouseLeave={e=>e.currentTarget.style.boxShadow="0 2px 8px rgba(244,114,182,0.1)"}>
-                  <span style={{ fontSize:26 }}>🖼️</span>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:700, color:C.text, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</div>
-                    <div style={{ fontSize:11, color:C.textLight, marginTop:2 }}>{fmtSize(f.size)} <span style={{ color:C.pink, marginLeft:4 }}>⬇ 클릭해서 저장</span></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        <div style={{ display:"flex", gap:12 }}>
-          <Btn onClick={()=>goCompose({mode:"self", subject:`Re: ${m.subject}`})}>↩️ 답장</Btn>
-          <Btn variant="ghost" onClick={()=>goCompose({mode:m.folder==="sent"?"other":"self", to:m.to, subject:`Fwd: ${m.subject}`, body:m.body, attachments:m.attachments||[]})}>↗️ 전달</Btn>
-        </div>
-      </Glass>
-    );
-  };
 
-  // ── LIST ─────────────────────────────────────────────────────────────────────
-  const ListView = () => {
-    const items = getFiltered();
-    const finfo = FOLDERS.find(f=>f.key===folder);
-    const isSentFolder = folder==="sent";
-    const unconfirmedInList = items.filter(m=>m.receipt&&!m.receipt.confirmed).length;
-
-    return (
-      <div className="fadeIn">
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ fontSize:24 }}>{finfo?.icon}</span>
-            <h2 style={{ fontFamily:"'Nunito',sans-serif", fontWeight:900, fontSize:20, color:C.text }}>{finfo?.label}</h2>
-            <span style={{ fontSize:12, color:C.textLight }}>{items.length}통</span>
-            {isSentFolder&&unconfirmedInList>0&&(
-              <span style={{ background:`linear-gradient(135deg,${C.blue},#3b82f6)`, color:"#fff", borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 10px" }}>
-                📨 미확인 {unconfirmedInList}
-              </span>
+            {/* ── 일반 파일 목록 ── */}
+            {m.attachments.some(f=>!isImgFile(f.name))&&(
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                {m.attachments.map((f,i)=> isImgFile(f.name) ? null : (
+                  <div key={i} onClick={()=>dlFile(f)}
+                    style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(255,255,255,0.8)", border:`1.5px solid ${C.border}`, borderRadius:14, padding:"12px 18px", cursor:f.dataUrl?"pointer":"default", transition:"all 0.2s" }}
+                    onMouseEnter={e=>{ if(f.dataUrl) e.currentTarget.style.boxShadow="0 4px 18px rgba(244,114,182,0.25)"; }}
+                    onMouseLeave={e=>e.currentTarget.style.boxShadow="none"}>
+                    <span style={{ fontSize:26 }}>{fileIcon(f.name)}</span>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:C.text, maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</div>
+                      <div style={{ fontSize:11, color:C.textLight, marginTop:2 }}>
+                        {fmtSize(f.size)}
+                        {f.dataUrl&&<span style={{ color:C.pink, marginLeft:6 }}>⬇ 클릭해서 저장</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-          {folder==="tome"&&<Btn variant="purple" onClick={()=>goCompose({mode:"self"})} style={{ fontSize:13, padding:"9px 18px" }}>💌 내게 편지 쓰기</Btn>}
-        </div>
-
-        {/* Sent folder: summary bar */}
-        {isSentFolder&&items.length>0&&(
-          <div style={{ display:"flex", gap:10, marginBottom:14, padding:"12px 18px", background:C.glassStrong, borderRadius:16, border:`1px solid ${C.border}`, backdropFilter:"blur(10px)", flexWrap:"wrap", alignItems:"center" }}>
-            <span style={{ fontSize:12, fontWeight:700, color:C.textMid }}>📊 수신 현황</span>
-            <span style={{ fontSize:12, color:"#059669", fontWeight:600 }}>✅ 읽음 {items.filter(m=>m.receipt?.readAt).length}</span>
-            <span style={{ fontSize:12, color:C.textMid, fontWeight:600 }}>📭 안읽음 {items.filter(m=>m.receipt&&!m.receipt.readAt&&m.receipt.confirmed).length}</span>
-            <span style={{ fontSize:12, color:"#2563eb", fontWeight:600 }}>📨 미확인 {items.filter(m=>m.receipt&&!m.receipt.confirmed).length}</span>
-          </div>
         )}
-
-        <Glass style={{ overflow:"hidden" }}>
-          {items.length===0 ? (
-            <div style={{ padding:64, textAlign:"center" }}>
-              <div className="float" style={{ fontSize:52, marginBottom:12 }}>📭</div>
-              <p style={{ color:C.textLight, fontSize:14 }}>아직 편지가 없어요</p>
-            </div>
-          ) : items.map((m,i)=>(
-            <div key={m.id} className="mailRow" onClick={()=>readMail(m)}
-              style={{ display:"flex", alignItems:"center", gap:14, padding:"15px 20px", borderBottom:i<items.length-1?`1px solid ${C.border}`:"none", cursor:"pointer", background:!m.read?"rgba(249,168,212,0.08)":"transparent", transition:"background 0.2s" }}>
-              <div style={{ width:8, height:8, borderRadius:"50%", background:!m.read?C.pink:"transparent", flexShrink:0, boxShadow:!m.read?`0 0 7px ${C.pink}`:"none" }} />
-              <button onClick={e=>toggleStar(m.id,e)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:16, flexShrink:0 }}>{m.starred?"⭐":"☆"}</button>
-
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, overflow:"hidden", minWidth:0 }}>
-                    <span style={{ fontWeight:m.read?500:700, fontSize:14, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{m.subject}</span>
-                    {m.attachments?.length>0&&<span style={{ fontSize:12, flexShrink:0 }}>📎</span>}
-                  </div>
-                  <span style={{ fontSize:11, color:C.textLight, flexShrink:0, marginLeft:12 }}>{m.date}</span>
-                </div>
-
-                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <p style={{ fontSize:12, color:C.textLight, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>
-                    {isSentFolder ? `→ ${m.to}` : m.body.slice(0,60)+"..."}
-                  </p>
-                  {/* Receipt badge inline in sent list */}
-                  {m.receipt&&(
-                    <div onClick={e=>e.stopPropagation()}>
-                      {!m.receipt.confirmed ? (
-                        <button className="receipt-btn" onClick={e=>checkReceipt(m.id,e)}
-                          style={{ display:"inline-flex", alignItems:"center", gap:4, background:"rgba(96,165,250,0.13)", border:`1.5px solid rgba(96,165,250,0.4)`, borderRadius:99, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#2563eb", cursor:"pointer", whiteSpace:"nowrap" }}>
-                          📨 수신확인
-                        </button>
-                      ) : m.receipt.readAt ? (
-                        <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:C.greenPale, border:`1.5px solid rgba(52,211,153,0.4)`, borderRadius:99, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#059669", whiteSpace:"nowrap" }}>
-                          ✅ 읽음
-                        </span>
-                      ) : (
-                        <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"rgba(249,168,212,0.1)", border:`1.5px solid ${C.border}`, borderRadius:99, padding:"3px 10px", fontSize:11, fontWeight:700, color:C.textMid, whiteSpace:"nowrap" }}>
-                          📭 안읽음
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <button onClick={e=>{ e.stopPropagation(); deleteMail(m.id); }} style={{ background:"none", border:"none", cursor:"pointer", fontSize:14, opacity:0.4, flexShrink:0 }}>🗑️</button>
-            </div>
-          ))}
-        </Glass>
-      </div>
-    );
-  };
-
-  // ── SHELL ────────────────────────────────────────────────────────────────────
-  return (
-    <div style={{ minHeight:"100vh", width:"100%", display:"flex", flexDirection:"column", position:"relative", zIndex:1 }}>
-      <BgBlobs />
-
-      {toast&&(
-        <div style={{ position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)", background:`linear-gradient(135deg,${C.pink},${C.purple})`, color:"#fff", borderRadius:99, padding:"12px 28px", fontWeight:700, fontSize:14, zIndex:999, animation:"fadeInScale 0.3s ease", boxShadow:"0 6px 24px rgba(244,114,182,0.4)", whiteSpace:"nowrap" }}>
-          {toast}
-        </div>
-      )}
-
-      <header style={{ background:"rgba(255,255,255,0.68)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", borderBottom:`1px solid ${C.border}`, padding:"0 32px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, width:"100%" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <button onClick={()=>setSideOpen(o=>!o)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:20, padding:4, color:C.text }}>☰</button>
-          <div style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer" }} onClick={()=>navTo("home")}>
-            <div className="float" style={{ fontSize:26 }}>🐰</div>
-            <span style={{ fontFamily:"'Nunito',sans-serif", fontWeight:900, fontSize:18, color:C.text }}>Space Nari Mail</span>
-          </div>
-          {view!=="home"&&(
-            <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:C.textLight }}>
-              <span style={{ cursor:"pointer" }} onClick={()=>navTo("home")}>홈</span>
-              <span>›</span>
-              {view==="compose"&&<span style={{ color:C.textMid }}>편지 쓰기</span>}
-              {view==="list"  &&<span style={{ color:C.textMid }}>{FOLDERS.find(f=>f.key===folder)?.label}</span>}
-              {view==="read"  &&<><span style={{ cursor:"pointer" }} onClick={()=>setView("list")}>{FOLDERS.find(f=>f.key===folder)?.label}</span><span>›</span><span style={{ color:C.textMid }}>읽기</span></>}
-            </div>
-          )}
-        </div>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 편지 검색..."
-            style={{ padding:"8px 16px", borderRadius:99, border:`1.5px solid ${C.border}`, background:"rgba(255,255,255,0.72)", fontFamily:"'Quicksand',sans-serif", fontSize:13, color:C.text, outline:"none", width:200 }}
-            onFocus={e=>e.target.style.borderColor=C.pink} onBlur={e=>e.target.style.borderColor=C.border} />
-          <Btn variant="soft"  onClick={()=>navTo("home")}  style={{ padding:"8px 16px", fontSize:12 }}>🏠 홈</Btn>
-          <div style={{ fontSize:13, color:C.textMid, fontWeight:700 }}>{ME.name} 🌸</div>
-          <Btn variant="ghost" onClick={onLogout} style={{ padding:"8px 16px", fontSize:12 }}>로그아웃</Btn>
-        </div>
-      </header>
-
-      <div style={{ display:"flex", flex:1, padding:"24px", gap:16, width:"100%" }}>
-        {sideOpen&&(
-          <aside style={{ width:236, flexShrink:0, animation:"slideIn 0.3s ease" }}>
-            <Btn onClick={()=>goCompose({mode:"other"})} style={{ width:"100%", padding:"13px", fontSize:14, marginBottom:10, justifyContent:"center" }}>✏️ 편지 쓰기</Btn>
-            <Btn variant="purple" onClick={()=>goCompose({mode:"self"})} style={{ width:"100%", padding:"12px", fontSize:13, marginBottom:16, justifyContent:"center" }}>💌 내게 편지 쓰기</Btn>
-            <Glass style={{ padding:"10px 8px", marginBottom:14 }}>
-              {FOLDERS.map(f=>{
-                const cnt     = f.key==="inbox"?unreadInbox:f.key==="tome"?unreadTome:f.key==="sent"?unconfirmed:0;
-                const active  = folder===f.key&&(view==="list"||view==="home");
-                const isSentF = f.key==="sent";
-                return (
-                  <div key={f.key} className="sideItem" onClick={()=>navTo(f.key)}
-                    style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 13px", borderRadius:13, cursor:"pointer", background:active?"rgba(244,114,182,0.18)":"transparent", marginBottom:2, transition:"background 0.2s" }}>
-                    <span style={{ fontSize:17 }}>{f.icon}</span>
-                    <span style={{ fontSize:13, fontWeight:active?700:500, color:active?C.pinkDark:C.text, flex:1 }}>{f.label}</span>
-                    {cnt>0&&<span style={{ background: isSentF?`linear-gradient(135deg,${C.blue},#3b82f6)`:`linear-gradient(135deg,${C.pink},${C.purple})`, color:"#fff", borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 7px" }}>{cnt}</span>}
-                  </div>
-                );
-              })}
-            </Glass>
-            <Glass style={{ padding:18, textAlign:"center" }}>
-              <div className="float" style={{ fontSize:28, marginBottom:8 }}>🌙</div>
-              <p style={{ fontSize:11, color:C.textLight, lineHeight:1.7 }}>오늘도 반짝이는<br/>하루 보내요 ✦</p>
-              <div style={{ marginTop:10, padding:"8px", background:"rgba(249,168,212,0.12)", borderRadius:10 }}>
-                <p style={{ fontSize:11, fontWeight:700, color:C.textMid }}>{ME.name}</p>
-                <p style={{ fontSize:10, color:C.textLight }}>{ME.email}</p>
-              </div>
-            </Glass>
-          </aside>
-        )}
-
-        <main style={{ flex:1, minWidth:0 }}>
-          {view==="home"    &&<HomeView />}
-          {view==="compose" &&<ComposeView />}
-          {view==="read"    &&<ReadView />}
-          {view==="list"    &&<ListView />}
-        </main>
-      </div>
-    </div>
-  );
-};
-
-// ── ROOT ───────────────────────────────────────────────────────────────────────
-export default function App() {
-  const [page,setPage]         = useState("login");
-  const [loggedIn,setLoggedIn] = useState(false);
-  if (loggedIn) return <MailApp onLogout={()=>{ setLoggedIn(false); setPage("login"); }} />;
-  if (page==="signup") return <Signup onGo={setPage} />;
-  if (page==="findId") return <FindAccount type="findId" onGo={setPage} />;
-  if (page==="findPw") return <FindAccount type="findPw" onGo={setPage} />;
-  return (
-    <div style={{ minHeight:"100vh", width:"100vw", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg,#fce4f0 0%,#ede9fe 50%,#fce4f0 100%)" }}>
-      <Login onLogin={()=>setLoggedIn(true)} onGo={setPage} />
-    </div>
-  );
-}
